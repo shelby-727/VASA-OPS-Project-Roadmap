@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VASA Operations Timeline</title>
+<style>
+:root{
+  --navy:#1F2A44;
+  --navy-light:#2C3B5E;
+  --bg:#F3F4F7;
+  --card:#FFFFFF;
+  --line:#E3E5EA;
+  --text:#1C2333;
+  --muted:#6B7280;
+  --today:#FFE8CC;
+  --today-line:#E8833A;
+  --radius:10px;
+  --mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter','Space Grotesk',system-ui,-apple-system,sans-serif;
+  font-size:14px;
+  line-height:1.4;
+}
+.app{
+  max-width:1400px;
+  margin:0 auto;
+  padding:20px 24px 60px;
+}
+
+/* ---------- Header ---------- */
+.header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:20px;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+.header h1{
+  font-family:'Space Grotesk','Inter',sans-serif;
+  font-size:26px;
+  font-weight:700;
+  margin:0 0 4px 0;
+  color:var(--navy);
+  letter-spacing:-0.01em;
+}
+.header .sub{
+  color:var(--muted);
+  font-size:13px;
+}
+.view-toggle{
+  display:flex;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:3px;
+  gap:2px;
+  height:38px;
+  align-self:flex-start;
+}
+.view-toggle button{
+  border:none;
+  background:transparent;
+  padding:0 18px;
+  height:32px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:600;
+  color:var(--muted);
+  cursor:pointer;
+  font-family:inherit;
+  transition:background .15s, color .15s;
+}
+.view-toggle button.active{
+  background:var(--navy);
+  color:#fff;
+}
+
+/* ---------- Filter bar ---------- */
+.filterbar{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  margin-bottom:18px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.filter-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.filter-label{
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--muted);
+  width:88px;
+  flex-shrink:0;
+}
+.pill{
+  border:1px solid var(--line);
+  background:#fff;
+  padding:6px 13px;
+  border-radius:999px;
+  font-size:12.5px;
+  font-weight:600;
+  cursor:pointer;
+  color:var(--text);
+  font-family:inherit;
+  transition:all .12s;
+  white-space:nowrap;
+}
+.pill:hover{border-color:#c3c8d4;}
+.pill.active{
+  background:var(--navy);
+  border-color:var(--navy);
+  color:#fff;
+}
+.chip{
+  border:1px solid var(--line);
+  background:#fff;
+  padding:5px 12px 5px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  color:var(--text);
+  font-family:inherit;
+  opacity:1;
+  transition:all .12s;
+}
+.chip .dot{
+  width:9px;height:9px;border-radius:50%;flex-shrink:0;
+}
+.chip.off{
+  opacity:.4;
+  background:#fafafb;
+}
+.chip:hover{border-color:#c3c8d4;}
+.filter-actions{
+  margin-left:auto;
+  display:flex;
+  gap:8px;
+}
+.linklike{
+  background:none;border:none;color:var(--navy-light);font-size:12px;font-weight:600;
+  cursor:pointer;font-family:inherit;padding:4px 2px;
+}
+.linklike:hover{text-decoration:underline;}
+
+/* ---------- Gantt ---------- */
+.gantt-wrap{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+.gantt-scroll{
+  overflow-x:auto;
+}
+.gantt-grid{
+  min-width:960px;
+}
+.gantt-head{
+  display:grid;
+  grid-template-columns:280px repeat(7,1fr);
+  position:sticky;
+  top:0;
+  background:var(--navy);
+  color:#fff;
+  z-index:5;
+}
+.gantt-head .hcell{
+  padding:10px 12px;
+  font-size:11.5px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  border-right:1px solid rgba(255,255,255,.08);
+  text-align:center;
+}
+.gantt-head .hcell:first-child{
+  text-align:left;
+  text-transform:none;
+  font-size:12px;
+  letter-spacing:0;
+}
+.gantt-head .hcell.current{
+  background:var(--today-line);
+}
+.cat-group-header{
+  display:grid;
+  grid-template-columns:280px repeat(7,1fr);
+  background:#F7F8FA;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  cursor:pointer;
+  user-select:none;
+}
+.cat-group-header .catcell{
+  padding:8px 12px;
+  font-size:12.5px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.cat-group-header .catdot{
+  width:10px;height:10px;border-radius:3px;flex-shrink:0;
+}
+.cat-group-header .count{
+  color:var(--muted);
+  font-weight:500;
+  font-size:11.5px;
+}
+.cat-group-header .chev{
+  margin-left:auto;
+  margin-right:12px;
+  color:var(--muted);
+  font-size:11px;
+  transition:transform .15s;
+}
+.cat-group-header.collapsed .chev{transform:rotate(-90deg);}
+.gantt-row{
+  display:grid;
+  grid-template-columns:280px repeat(7,1fr);
+  border-top:1px solid #F0F1F3;
+  min-height:36px;
+}
+.gantt-row:hover{background:#FAFBFD;}
+.gantt-row .label{
+  padding:7px 12px 7px 26px;
+  font-size:12.5px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:1px;
+  border-right:1px solid var(--line);
+  cursor:pointer;
+}
+.gantt-row .label .name{
+  font-weight:600;
+  color:var(--text);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.gantt-row .label .meta{
+  font-size:10.5px;
+  color:var(--muted);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.gantt-track{
+  position:relative;
+  grid-column:2 / span 7;
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+}
+.gantt-track .monthcell{
+  border-right:1px solid #F0F1F3;
+}
+.gantt-track .monthcell.current{
+  background:rgba(232,131,58,.10);
+}
+.bar{
+  position:absolute;
+  top:6px;
+  bottom:6px;
+  border-radius:6px;
+  cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);
+}
+.bar.needsdate{
+  background-image: repeating-linear-gradient(45deg, var(--bc) 0 6px, #FFE066 6px 12px);
+}
+.bar.monitoring{
+  background:repeating-linear-gradient(45deg,#C7CAD1 0 6px, #E4E6EA 6px 12px);
+  box-shadow:inset 0 0 0 1px #B9BDC6;
+}
+.bar:hover{outline:2px solid var(--navy); outline-offset:1px;}
+
+.gantt-empty{
+  padding:40px;
+  text-align:center;
+  color:var(--muted);
+}
+
+/* ---------- Calendar ---------- */
+.month-tabs{
+  display:flex;
+  gap:4px;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+}
+.month-tabs button{
+  border:1px solid var(--line);
+  background:#fff;
+  padding:8px 16px;
+  border-radius:8px;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  color:var(--text);
+  font-family:inherit;
+}
+.month-tabs button.active{
+  background:var(--navy);
+  border-color:var(--navy);
+  color:#fff;
+}
+.month-tabs button.hascurrent::after{
+  content:'';
+  display:inline-block;
+  width:6px;height:6px;border-radius:50%;
+  background:var(--today-line);
+  margin-left:6px;
+  vertical-align:middle;
+}
+.cal-layout{
+  display:grid;
+  grid-template-columns:1fr 300px;
+  gap:16px;
+  align-items:start;
+}
+.cal-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+.cal-weekdays{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  background:var(--navy);
+}
+.cal-weekdays div{
+  color:#fff;
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  padding:8px 0;
+  text-align:center;
+}
+.cal-grid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  grid-auto-rows:minmax(96px,auto);
+}
+.cal-day{
+  border-right:1px solid #F0F1F3;
+  border-bottom:1px solid #F0F1F3;
+  padding:6px;
+  position:relative;
+}
+.cal-day.pad{background:#FAFAFB;}
+.cal-day.today{background:var(--today);}
+.cal-day .daynum{
+  font-size:11.5px;
+  font-weight:700;
+  color:var(--muted);
+  margin-bottom:4px;
+}
+.cal-day.today .daynum{color:var(--today-line);}
+.evt-chip{
+  font-size:10.5px;
+  font-weight:600;
+  padding:2px 6px;
+  border-radius:5px;
+  margin-bottom:3px;
+  color:#fff;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.evt-chip.needsdate{
+  background-image: repeating-linear-gradient(45deg, var(--bc) 0 5px, #FFE066 5px 10px);
+  color:#3a2e00;
+}
+.sidebar-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px;
+  margin-bottom:14px;
+}
+.sidebar-card h3{
+  margin:0 0 10px;
+  font-size:12.5px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:var(--muted);
+}
+.side-item{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+  padding:6px 0;
+  border-bottom:1px solid #F3F4F6;
+  cursor:pointer;
+  font-size:12.5px;
+}
+.side-item:last-child{border-bottom:none;}
+.side-item .dot{
+  width:9px;height:9px;border-radius:50%;margin-top:3px;flex-shrink:0;
+}
+.side-empty{color:var(--muted); font-size:12.5px; padding:6px 0;}
+
+/* ---------- Detail modal ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(20,24,38,.45);
+  display:none; align-items:center; justify-content:center; z-index:50;
+  padding:20px;
+}
+.overlay.show{display:flex;}
+.modal{
+  background:#fff;
+  border-radius:14px;
+  max-width:480px;
+  width:100%;
+  padding:22px 24px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+}
+.modal .cattag{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:#fff;
+  padding:4px 10px;
+  border-radius:999px;
+  margin-bottom:10px;
+}
+.modal h2{
+  margin:0 0 12px;
+  font-size:18px;
+  color:var(--navy);
+}
+.modal .row{
+  margin-bottom:10px;
+}
+.modal .row .k{
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:var(--muted);
+  font-weight:700;
+  margin-bottom:2px;
+}
+.modal .row .v{
+  font-size:13px;
+  color:var(--text);
+}
+.modal .flag{
+  display:inline-block;
+  margin-top:2px;
+  font-size:11.5px;
+  font-weight:700;
+  color:#8a5a00;
+  background:#FFF3D6;
+  padding:3px 9px;
+  border-radius:6px;
+}
+.modal .close{
+  float:right;
+  border:none;
+  background:#F0F1F4;
+  width:28px;height:28px;
+  border-radius:50%;
+  font-size:15px;
+  cursor:pointer;
+  color:var(--muted);
+}
+.legend-note{
+  margin-top:14px;
+  font-size:11.5px;
+  color:var(--muted);
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.legend-note .swatch{
+  display:inline-flex; align-items:center; gap:5px;
+}
+.legend-note .sw{
+  width:16px;height:9px;border-radius:2px;display:inline-block;
+}
+.legend-note .sw.hatch{
+  background-image:repeating-linear-gradient(45deg,#999 0 3px,#FFE066 3px 6px);
+}
+.legend-note .sw.hatch2{
+  background-image:repeating-linear-gradient(45deg,#C7CAD1 0 3px,#E4E6EA 3px 6px);
+}
+@media (max-width:860px){
+  .cal-layout{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<script id="data" type="application/json">[{"id": 1, "sheet": "Ops Overview", "category": "Leadership & Strategic", "activity": "Leadership Conference", "owner": "COO/PMO/Fitness", "audience": "All", "timing": "8/3 - 8/5", "source": "Fitness Master Calendar doc; confirmed by OPs EA tracker (~220 attendees, sponsorship + golf)", "fills": [null, null, "#4472C4", null, null, null, null]}, {"id": 2, "sheet": "Ops Overview", "category": "Leadership & Strategic", "activity": "Q3 QBR / DM Leadership Conference", "owner": "COO/Leadership", "audience": "All", "timing": "October 20-21, 2026 - confirmed by user as DM Leadership Conference format", "source": "Email: OPS Project Review draft (VASA_OPS_Project_Review_DRAFT.xlsx, 6/25/26) + user confirmation", "fills": [null, null, null, null, "#4472C4", null, null]}, {"id": 3, "sheet": "Ops Overview", "category": "Leadership & Strategic", "activity": "Director+ Meeting (pending)", "owner": null, "audience": "All", "timing": "TBD", "source": null, "fills": [null, null, null, null, "#4472C4", null, null]}, {"id": 4, "sheet": "Ops Overview", "category": "Leadership & Strategic", "activity": "Great Places to Work Survey", "owner": null, "audience": "All", "timing": "TBD", "source": null, "fills": [null, null, null, null, null, null, null]}, {"id": 5, "sheet": "Ops Overview", "category": "Launches", "activity": "Janitorial Supply Ordering Transition (Vroozi)", "owner": "Facilities/Clubs", "audience": "All", "timing": "Go-live 7/1/2026; DM/GM/AGM/MEL training was due by 7/1", "source": "VASA Weekly (Club Hub intranet)", "fills": [null, "#2E86AB", null, null, null, null, null]}, {"id": 6, "sheet": "Ops Overview", "category": "Pilots", "activity": "AGM/MEL Pilot", "owner": "Field Ops (Sam Perkins/Andy Cornell)", "audience": "All", "timing": "Pilot live 6/30(7/1)-8/31 (85% done as of 6/25); debrief 9/7; COO readout 10/23; rollout decision 11/21", "source": "Asana + OPs Masterlist-EA + OPS Project Review draft (all agree on pilot window, extended w/ decision milestones)", "fills": ["#70AD47", "#70AD47", "#70AD47", "#70AD47", "#70AD47", "#70AD47", null]}, {"id": 7, "sheet": "Ops Overview", "category": "Pilots", "activity": "Pilates Pilot - Willow Creek Remodel", "owner": "Ops", "audience": "Region 1", "timing": "Construction complete 7/17; setup 8/1-8/8; training 8/10-8/29", "source": "Asana: Willow Creek Pilates Remodel", "fills": [null, "#70AD47", "#70AD47", null, null, null, null]}, {"id": 8, "sheet": "Ops Overview", "category": "Training", "activity": "Pilates Instructor Academy", "owner": "STUDIO", "audience": "Region 1 (Willow Creek)", "timing": "8/7 - 8/9", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, null, "#70AD47", null, null, null, null]}, {"id": 9, "sheet": "Ops Overview", "category": "Pilots", "activity": "Pilates Willow Creek Grand Opening", "owner": "STUDIO/Ops (Layne Nordquist)", "audience": "Region 1 (Willow Creek)", "timing": "9/19 - CONFIRMED by 3 independent sources", "source": "Asana + Fitness Master Calendar doc + OPS Project Review draft (all agree: 9/19)", "fills": [null, null, null, "#70AD47", null, null, null]}, {"id": 10, "sheet": "Ops Overview", "category": "Pilots", "activity": "PT Zone Redesign Pilot", "owner": "Personal Training", "audience": "TBD", "timing": "Aug/Sept - tentative - DEFINE/UPDATE", "source": "Fitness Master Calendar doc", "fills": ["#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00"]}, {"id": 11, "sheet": "Ops Overview", "category": "Pilots", "activity": "Demotu: Member App Pilot", "owner": "Personal Training", "audience": "TBD", "timing": "Q3 pilot/test (exact date TBD)", "source": "Fitness Master Calendar doc", "fills": [null, "#70AD47", "#70AD47", "#70AD47", null, null, null]}, {"id": 12, "sheet": "Ops Overview", "category": "Pilots", "activity": "FITRADIO + Workout Builder Pilots", "owner": "STUDIO", "audience": "All", "timing": "Go live Aug WK3 - WHERE", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": ["#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00"]}, {"id": 13, "sheet": "Ops Overview", "category": "Pilots", "activity": "GM Training / Onboarding (New Clubs)", "owner": "Mindy Romanosky", "audience": "Region 3 (Livionia)", "timing": "PILOT 11-21 (NCO) Done byJuly 27th -  active thread covers Recruiting & GM Benchbuilding, GMIT Training Materials & Roadmap, External GM Training Plans, New Hire Training, DM Involvement", "source": null, "fills": [null, "#70AD47", null, null, null, null, null]}, {"id": 14, "sheet": "Ops Overview", "category": "Launches", "activity": "AI Class Count Tool", "owner": "Group Fitness", "audience": "All", "timing": "Live July 1", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, "#2E86AB", null, null, null, null, null]}, {"id": 15, "sheet": "Ops Overview", "category": "Launches", "activity": "PT 1st Session Billing Change", "owner": "Personal Training", "audience": "All", "timing": "Go live July 1", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, "#2E86AB", null, null, null, null, null]}, {"id": 16, "sheet": "Ops Overview", "category": "Launches", "activity": "PT Scheduler Governance (PULSE Governor)", "owner": "Personal Training", "audience": "DMs ", "timing": "DM comms 6/29; PTL/GM comms 7/2; transition 7/2-31; live 8/1", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": ["#2E86AB", "#2E86AB", "#2E86AB", null, null, null, null]}, {"id": 17, "sheet": "Ops Overview", "category": "Launches", "activity": "PT Lifecycle: ISSA Scholarship Program", "owner": "Personal Training", "audience": "Internal team members", "timing": "Launch Aug 1", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, null, "#2E86AB", null, null, null, null]}, {"id": 18, "sheet": "Ops Overview", "category": "Launches", "activity": "Demotu: Renewals Tool Go-Live", "owner": "Personal Training", "audience": "All", "timing": "Week of 8/24-28", "source": "Fitness Master Calendar doc (WK3 August)", "fills": [null, null, "#2E86AB", null, null, null, null]}, {"id": 19, "sheet": "Ops Overview", "category": "Launches", "activity": "Demotu: Member Trial Launch", "owner": "Personal Training", "audience": "All", "timing": "Sept 1 (WK1); continues into WK2 Sept", "source": "Fitness Master Calendar doc (WK1 + WK2 September)", "fills": [null, null, null, "#2E86AB", null, null, null]}, {"id": 20, "sheet": "Ops Overview", "category": "Launches", "activity": "Demotu: Spanish Language Support", "owner": "Personal Training", "audience": "All", "timing": "WK2 September", "source": "Fitness Master Calendar doc (WK2 September)", "fills": [null, null, null, "#2E86AB", null, null, null]}, {"id": 21, "sheet": "Ops Overview", "category": "Launches", "activity": "Demotu: STUDIO Integration Ph.1", "owner": "Personal Training", "audience": "All", "timing": "Oct 1", "source": "Fitness Master Calendar doc (WK1 October)", "fills": [null, null, null, null, "#2E86AB", null, null]}, {"id": 22, "sheet": "Ops Overview", "category": "Launches", "activity": "Demotu: STUDIO Integration Full Rollout", "owner": "Personal Training", "audience": null, "timing": "Q4 (WK4 October onward)", "source": "Fitness Master Calendar doc (WK4 October)", "fills": [null, null, null, null, "#2E86AB", "#2E86AB", "#2E86AB"]}, {"id": 23, "sheet": "Club Promos", "category": "Club Promos", "activity": "Prime Bites Promo", "owner": "Clubs", "audience": "All", "timing": "6/15 - 6/30", "source": "SharePoint/Outlook: Brand Team Update 6.19", "fills": ["#ED7D31", null, null, null, null, null, null]}, {"id": 24, "sheet": "Club Promos", "category": "Club Promos", "activity": "June & July Club Promo #2", "owner": "Clubs", "audience": "All", "timing": "6/28 - 7/6", "source": "Source spreadsheet + Brand Team Update", "fills": ["#ED7D31", "#ED7D31", null, null, null, null, null]}, {"id": 25, "sheet": "Club Promos", "category": "Club Promos", "activity": "Celsius Promo", "owner": "Clubs", "audience": "All", "timing": "7/1 - 7/15", "source": "SharePoint/Outlook: Brand Team Update 6.19; VASA Weekly", "fills": [null, "#ED7D31", null, null, null, null, null]}, {"id": 26, "sheet": "Club Promos", "category": "Club Promos", "activity": "STUDIO Challenge #1 (fka STUDIO Mania)", "owner": "STUDIO/Clubs", "audience": "All", "timing": "7/18 - 7/25 (7 workouts/7 days)", "source": "Brand Team Update + Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, "#ED7D31", null, null, null, null, null]}, {"id": 27, "sheet": "Club Promos", "category": "Club Promos", "activity": "Alani Nu Promo", "owner": "Clubs", "audience": "All", "timing": "7/16 - 7/31", "source": "SharePoint/Outlook: Brand Team Update 6.19", "fills": [null, "#ED7D31", null, null, null, null, null]}, {"id": 28, "sheet": "Club Promos", "category": "Club Promos", "activity": "STUDIO Challenge #2", "owner": "STUDIO/Clubs", "audience": "All", "timing": "Begins 10/17, closes 10/24", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, null, null, null, "#ED7D31", null, null]}, {"id": 29, "sheet": "Club Promos", "category": "Club Promos", "activity": "2026 REVIVE Fall Launch", "owner": "Marketing/Clubs", "audience": "EVERYWHERE?", "timing": "7/1 - 9/30", "source": "Asana: 2026 REVIVE Fall Launch project", "fills": ["#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00", "#FFFF00"]}, {"id": 30, "sheet": "Club Promos", "category": "Club Promos", "activity": "Training Day PT Sales Events (upcoming)", "owner": "Personal Training", "audience": "All", "timing": "Next instances: 9/12; 12/5 (tentative)", "source": "Fitness Master Calendar doc + OPS Project Review draft + confirmed as recurring series via Weekly Fitness Ops decks", "fills": [null, null, null, "#ED7D31", null, null, null]}, {"id": 31, "sheet": "Club Promos", "category": "Club Promos", "activity": "BUM Baja Skatt LTO (Arizona only)", "owner": "Marketing/Clubs", "audience": "AZ clubs only", "timing": "Started ~6/22, through 7/25", "source": "Asana: July Marketing Campaigns project", "fills": ["#ED7D31", "#ED7D31", null, null, null, null, null]}, {"id": 32, "sheet": "Club Promos", "category": "Club Promos", "activity": "Ghost Bubbalicious LTO", "owner": "Marketing/Clubs", "audience": "All or select markets (TBD)", "timing": "Aiming ~7/1, through 7/31 (still being finalized)", "source": "Asana: July Marketing Campaigns project", "fills": [null, "#ED7D31", null, null, null, null, null]}, {"id": 33, "sheet": "Club Promos", "category": "Club Promos", "activity": "August REVIVE Total War Promo", "owner": "Marketing/Clubs", "audience": "All", "timing": "8/1 - 8/15", "source": "Asana: Aug Marketing Campaigns project", "fills": [null, null, "#ED7D31", null, null, null, null]}, {"id": 34, "sheet": "Club Promos", "category": "Club Promos", "activity": "August REVIVE Thavage Promo", "owner": "Marketing/Clubs", "audience": "All", "timing": "8/16 - 8/31", "source": "Asana: Aug Marketing Campaigns project", "fills": [null, null, "#ED7D31", null, null, null, null]}, {"id": 35, "sheet": "Club Promos", "category": "Club Promos", "activity": "$10 Member Referral Promo", "owner": "Marketing/Clubs", "audience": "All", "timing": "Ongoing/recurring - no confirmed end date", "source": "VASA Weekly (Club Hub intranet), 6/29-7/6 editions", "fills": ["#ED7D31", "#ED7D31", null, null, null, null, null]}, {"id": 36, "sheet": "New Clubs & Remodels", "category": "Remodels", "activity": "West Jordan FLOW Remodel Opening", "owner": "Ops", "audience": "Region-specific", "timing": "7/11 - CONFIRMED via Asana project status (construction complete, BBALL side reopened 6/27, room ready); NOTE: 6/25/26 NCOs & Remodels draft listed this as 'TBD, monitoring' - likely compiled before final confirmation came through", "source": "SharePoint/Outlook: Brand Team Update 6.19 + Asana project status (most recent, 6/26/26)", "fills": [null, "#FFC000", null, null, null, null, null]}, {"id": 37, "sheet": "New Clubs & Remodels", "category": "Remodels", "activity": "STUDIO Relaunch: RED/LFT/FLOW Refresh", "owner": "STUDIO", "audience": "All", "timing": "December (full product training overhaul ongoing through Q4)", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, null, null, null, null, null, "#FFC000"]}, {"id": 38, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Green Bay, WI - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3", "timing": "Opening: 8/15", "source": "Fitness Master Calendar doc + Asana + OPS Project Review draft (all agree)", "fills": [null, null, "#7030A0", null, null, null, null]}, {"id": 39, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Mount Prospect, IL - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3", "timing": "Opening: 9/19", "source": "Fitness Master Calendar doc + Asana + OPS Project Review draft (all agree)", "fills": [null, null, null, "#7030A0", null, null, null]}, {"id": 40, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Dearborn, MI - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3 (sister club: Livonia)", "timing": "Opening: 9/26", "source": "Fitness Master Calendar doc + Asana (due_on 9/26); OPS Project Review draft says '~Sep est.'", "fills": [null, null, null, "#7030A0", null, null, null]}, {"id": 41, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Cedar Rapids, IA - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3", "timing": "Opening: 10/6", "source": "VASA Fitness NCOs & Remodels draft (6/25/26) - user-confirmed authoritative over Asana", "fills": [null, null, null, null, "#7030A0", null, null]}, {"id": 42, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Boise, ID - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 2", "timing": "Opening: 10/17", "source": "Asana + Fitness Master Calendar doc + OPS Project Review draft + Mindy's Master Hiring Sheet (all agree)", "fills": [null, null, null, null, "#7030A0", null, null]}, {"id": 43, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "North Omaha, NE - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 1", "timing": "Opening: 11/7 (moved from original 10/24 target)", "source": "VASA Fitness NCOs & Remodels draft (6/25/26); previously flagged as at-risk via Mindy's Master Hiring Sheet, now confirmed moved", "fills": [null, null, null, null, null, "#7030A0", null]}, {"id": 44, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Arapahoe, CO - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 1", "timing": "Opening: 10/31", "source": "Asana: 094 Centennial (Arapahoe), CO + Fitness Master Calendar doc (agree)", "fills": [null, null, null, null, "#7030A0", null, null]}, {"id": 45, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Waterloo, IA - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3", "timing": "Opening: 10/31", "source": "Asana: Waterloo, IA NCO Project + Fitness Master Calendar doc + OPS Project Review draft (all agree)", "fills": [null, null, null, null, "#7030A0", null, null]}, {"id": 46, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Livonia, MI - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3", "timing": "Opening: 11/21", "source": "VASA Fitness NCOs & Remodels draft (6/25/26); resolves earlier 11/14 vs 11/21 internal conflict in favor of 11/21", "fills": [null, null, null, null, null, "#7030A0", null]}, {"id": 47, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Oak Forest, IL - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3", "timing": "Opening: 11/21", "source": "Asana + Fitness Master Calendar doc (agree); OPS Project Review draft says '~Nov est.'", "fills": [null, null, null, null, null, "#7030A0", null]}, {"id": 48, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "South Bend, IN - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3", "timing": "Opening: 12/5", "source": "Fitness Master Calendar doc + Asana (due_on 12/5); OPS Project Review draft says 'TBD'", "fills": [null, null, null, null, null, null, "#7030A0"]}, {"id": 49, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Colorado Springs (Jet Wing) - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 1", "timing": "Opening: 12/12", "source": "Asana + Fitness Master Calendar doc (agree); OPS Project Review draft says 'Q4'", "fills": [null, null, null, null, null, null, "#7030A0"]}, {"id": 50, "sheet": "New Clubs & Remodels", "category": "New Club Openings", "activity": "Waukegan, IL - New Club Opening", "owner": "Field Ops/NCO", "audience": "Region 3", "timing": "Opening: 12/19", "source": "Fitness Master Calendar doc + Asana (due_on 12/19); OPS Project Review draft says 'Q4'", "fills": [null, null, null, null, null, null, "#7030A0"]}, {"id": 51, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Ypsilanti, MI - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "Opening: 3/6/2027", "source": "VASA Fitness NCOs & Remodels draft (6/25/26) + Mindy's Master Hiring Sheet", "fills": [null, null, null, null, null, null, null]}, {"id": 52, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Dayton, OH - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "Opening: 3/20/2027", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 53, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Jackson, MI - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "ON HOLD - date TBD", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 54, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Lansing, MI - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "ON HOLD (landlord financing) - est. opening 4/3/2027", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 55, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Tulsa (Sheridan), OK - New Club Opening", "owner": "Field Ops/NCO (Danielle McCarthy, District 2)", "audience": "TBD", "timing": "Opening: 4/17/2027", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 56, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Des Moines, IA - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "Opening: 4/24/2027", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 57, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Roseville, MI - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "Opening: 6/23/2027", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 58, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Cincinnati (Eastgate), OH - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "Date not yet set", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 59, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Cincinnati (Prospect), OH - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "Date not yet set", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 60, "sheet": "New Clubs & Remodels", "category": "2027+ Pipeline", "activity": "Melrose Park, IL - New Club Opening", "owner": "Field Ops/NCO", "audience": "TBD", "timing": "Opening: 12/23/2027", "source": "VASA Fitness NCOs & Remodels draft (6/25/26)", "fills": [null, null, null, null, null, null, null]}, {"id": 61, "sheet": "Fitness Teams", "category": "STUDIO", "activity": "STUDIO Training Materials / Schedule Optimizer", "owner": "STUDIO", "audience": "STUDIO Team Leads", "timing": "End of July", "source": "Fitness Master Calendar doc", "fills": [null, "#C00000", null, null, null, null, null]}, {"id": 62, "sheet": "Fitness Teams", "category": "STUDIO", "activity": "STUDIO Programming Refresh", "owner": "STUDIO", "audience": "All", "timing": "Mid Q4 (November)", "source": "Fitness Master Calendar doc", "fills": [null, null, null, null, null, "#C00000", null]}, {"id": 63, "sheet": "Fitness Teams", "category": "STUDIO", "activity": "LES MILLS Hosted Trainings", "owner": "STUDIO (Layne Nordquist)", "audience": "STUDIO Coaches/Clubs", "timing": "Phase 1 Q2 (done); Phase 2 Q3; full expansion Q4 (through 12/31)", "source": "Asana: VASA OPs Masterlist-Team + OPS Project Review draft (Owner: Layne Nordquist)", "fills": [null, "#C00000", "#C00000", "#C00000", "#C00000", "#C00000", "#C00000"]}, {"id": 64, "sheet": "Fitness Teams", "category": "STUDIO", "activity": "LES MILLS Manager Training Spots", "owner": "STUDIO (Layne Nordquist)", "audience": "STUDIO Managers", "timing": "Ongoing through 9/30 (doc shows Q2-Q4 active)", "source": "Asana: VASA OPs Masterlist-Team + OPS Project Review draft (Owner: Layne Nordquist)", "fills": [null, "#C00000", "#C00000", "#C00000", "#C00000", "#C00000", "#C00000"]}, {"id": 65, "sheet": "Fitness Teams", "category": "STUDIO", "activity": "AMPLIFY Coaches' Summit", "owner": "STUDIO (Layne Nordquist)", "audience": "All STUDIO Coaches/Instructors", "timing": "All 3 waves complete (Apr-6/28); wrap-up comms pending", "source": "Asana: VASA OPs Masterlist-Team + OPS Project Review draft (Owner: Layne Nordquist)", "fills": ["#C00000", null, null, null, null, null, null]}, {"id": 66, "sheet": "Fitness Teams", "category": "Group Fitness", "activity": "SHAPES Training (Littleton CO, Romeoville IL, Saratoga Springs UT)", "owner": "Group Fitness", "audience": "CO/IL/UT markets", "timing": "Littleton 7/11; Romeoville 8/1; Saratoga Springs 7/18", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, "#00B0F0", "#00B0F0", null, null, null, null]}, {"id": 67, "sheet": "Fitness Teams", "category": "Group Fitness", "activity": "GF Training Materials / Schedule Optimizer", "owner": "Group Fitness", "audience": "GFTLs", "timing": "End of July", "source": "OPS Project Review draft", "fills": [null, "#00B0F0", null, null, null, null, null]}, {"id": 68, "sheet": "Fitness Teams", "category": "Group Fitness", "activity": "Les Mills Event Playbook Finalized", "owner": "Group Fitness", "audience": "All", "timing": "8/15", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, null, "#00B0F0", null, null, null, null]}, {"id": 69, "sheet": "Fitness Teams", "category": "Group Fitness", "activity": "Les Mills Quarterly Release", "owner": "Group Fitness", "audience": "All", "timing": "10/10", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, null, null, null, "#00B0F0", null, null]}, {"id": 70, "sheet": "Fitness Teams", "category": "Group Fitness", "activity": "GF Ambassador Program Expansion", "owner": "Group Fitness", "audience": "All", "timing": "September (TBD)", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, null, null, "#00B0F0", null, null, null]}, {"id": 71, "sheet": "Fitness Teams", "category": "Group Fitness", "activity": "Q1 2027 GF Events Calendar Draft", "owner": "Group Fitness", "audience": "Internal/Field", "timing": "November (draft)", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": [null, null, null, null, null, "#00B0F0", null]}, {"id": 72, "sheet": "Fitness Teams", "category": "Personal Training", "activity": "PT Hiring Event", "owner": "Personal Training", "audience": "Low-PT-staffed clubs", "timing": "June 24 & 26", "source": "Fitness Master Calendar doc + OPS Project Review draft", "fills": ["#375623", null, null, null, null, null, null]}, {"id": 73, "sheet": "Fitness Teams", "category": "Personal Training", "activity": "PT Recruiting: Full Integration", "owner": "Personal Training", "audience": "All", "timing": "Complete by 7/31", "source": "Fitness Master Calendar doc", "fills": [null, "#375623", null, null, null, null, null]}, {"id": 74, "sheet": "Fitness Teams", "category": "Personal Training", "activity": "PT Training Materials Overhaul", "owner": "Personal Training", "audience": "All", "timing": "6-week rollout in August", "source": "OPS Project Review draft", "fills": [null, null, "#375623", "#375623", null, null, null]}, {"id": 75, "sheet": "Fitness Teams", "category": "Personal Training", "activity": "Training Materials Release (STUDIO/GF/PT Waves 1-3)", "owner": "All Fitness Teams", "audience": "DMs / Team Leads (CO,IL,UT / AZ / OK,NE,WI,IN)", "timing": "Wave 1: 7/6-10; Wave 2: 7/13-17 & 8/10-14; Wave 3: 7/27-31 & 8/24-28", "source": "Fitness Master Calendar doc (consolidated)", "fills": [null, "#375623", "#375623", null, null, null, null]}, {"id": 76, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "GTMJ & In-Club Process Improvements", "owner": "Patrick Wilhelm", "audience": "Clubs/Sales", "timing": "TBD - STUDIO-first flow, new tablet UX, A/B pilot in progress at 9 clubs; no confirmed rollout date (Asana dates unreliable per user)", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 77, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "FD Optimization & Housekeeping", "owner": "Ops (Alethea Norton)", "audience": "Clubs (UT confirmed; CO/IL TBD)", "timing": "TBD - new FD schedule model + day porter rollout; no confirmed date (Asana dates unreliable per user)", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 78, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "NCO Marketing Strategy & New Hire Training Plans", "owner": "Mindy Romanosky", "audience": "NCO Clubs", "timing": "TBD - working group, no fixed date; active email thread through late June", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 79, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "EOL Equipment and Club Prioritization", "owner": null, "audience": "Clubs (prioritization TBD)", "timing": "TBD - CapEx budget approval pending", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 80, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "Basic Access / TI Upgrade Strategy", "owner": "Sam Perkins/Patrick Wilhelm", "audience": "Select clubs (Glendale Heights, Northbrook flagged)", "timing": "TBD - club list submitted, direction pending", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 81, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "REVIVE Reimagined (Vending Machines, Retail, etc.)", "owner": "Marketing/REVIVE", "audience": "All", "timing": "TBD - high-level tracking only", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 82, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "Membership Agreement Review", "owner": "COO (Chris Griebe)", "audience": "All", "timing": "TBD - COO priority, timeline not yet confirmed", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 83, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "New Club Hub Relaunch (delayed)", "owner": "IT/Internal Comms", "audience": "All clubs/employees", "timing": "TBD - launch delayed, no new date announced; Opus trainings still required", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 84, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "HYROX Branded Clothing", "owner": "Molly Flynn/Layne Nordquist/Brandon", "audience": "All", "timing": "TBD - merchandise project", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 85, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "GMIT (GM-in-Training Program)", "owner": "Andy Cornell", "audience": "Leadership pipeline", "timing": "TBD - ongoing 8-12 week cohorts; identifying leads, PDP graduation cadence in progress", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 86, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "Agentics (Vi Labs + HireBob.AI + Keepme.ai)", "owner": "ON HOLD", "audience": "HR/Recruiting, Ops", "timing": "ON HOLD - confirmed by user; combines AI hiring/onboarding (HireBob.AI) and Vi Labs platform evaluations under one initiative", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 87, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "Databricks Dashboard - Operations Review", "owner": null, "audience": "Ops", "timing": "TBD - includes analysis for Basic membership removal in July", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 88, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "Kid Care Policy Updates - UT Escalation", "owner": "Sam Perkins (facilitating)", "audience": "Utah clubs (or company-wide TBD)", "timing": "TBD - legal review pending, then COO decision on UT-only vs. company-wide", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}, {"id": 89, "sheet": "TBD - Monitor", "category": "TBD / Unscheduled", "activity": "Uniform Strategy", "owner": "Sam Perkins (facilitating)", "audience": "All", "timing": "TBD - in progress", "source": null, "fills": ["#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", "#D9D9D9", null]}]
+</script>
+<script>
+/* ============ Constants ============ */
+const RAW = JSON.parse(document.getElementById('data').textContent);
+const MONTH_ABBR = ['Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_NUM  = [6,7,8,9,10,11,12];
+const MONTH_FULL = ['June','July','August','September','October','November','December'];
+const MONTH_DAYS = [30,31,31,30,31,30,31];
+const YEAR = 2026;
+const TODAY = new Date(2026,6,8); // July 8, 2026
+const CURRENT_MONTH_IDX = 1; // July
+
+const CATEGORY_COLORS = {
+  'Leadership & Strategic': '#4472C4',
+  'Launches': '#2E86AB',
+  'Pilots': '#70AD47',
+  'Training': '#3FA796',
+  'Club Promos': '#ED7D31',
+  'New Club Openings': '#7030A0',
+  'Remodels': '#C99A00',
+  '2027+ Pipeline': '#8E7CC3',
+  'Personal Training': '#375623',
+  'Group Fitness': '#0B8FC7',
+  'STUDIO': '#C00000',
+  'TBD / Unscheduled': '#7A7F87'
+};
+const CATEGORY_ORDER = Object.keys(CATEGORY_COLORS);
+
+const REGION_LABELS = {all:'All Regions', '1':'Region 1', '2':'Region 2', '3':'Region 3'};
+
+/* ============ Parse regions ============ */
+function parseRegions(audience){
+  if(!audience) return ['all'];
+  const matches = [...audience.matchAll(/Region\s*([123])/gi)].map(m=>m[1]);
+  if(matches.length) return [...new Set(matches)];
+  if(/\ball\b/i.test(audience)) return ['all'];
+  return ['other'];
+}
+
+/* ============ Build items ============ */
+function buildItems(raw){
+  return raw.map(it=>{
+    const fills = it.fills;
+    const monthsActive = fills.map(f=>!!f);
+    const hasYellow = fills.some(f=> f && f.toLowerCase()==='#ffff00');
+    const isMonitoring = it.sheet === 'TBD - Monitor';
+    const anyFill = fills.some(f=>f);
+    let status = 'scheduled';
+    if(isMonitoring) status = 'monitoring';
+    else if(hasYellow) status = 'needsdate';
+    else if(!anyFill) status = it.category === '2027+ Pipeline' ? 'future' : 'unscheduled';
+
+    // contiguous segments of active months
+    const segments = [];
+    let segStart = null;
+    for(let i=0;i<7;i++){
+      if(monthsActive[i] && segStart===null) segStart = i;
+      if((!monthsActive[i] || i===6) && segStart!==null){
+        const segEnd = monthsActive[i] ? i : i-1;
+        segments.push([segStart, segEnd]);
+        segStart = null;
+      }
+    }
+    return {
+      ...it,
+      regions: parseRegions(it.audience),
+      monthsActive, status, segments,
+      color: CATEGORY_COLORS[it.category] || '#666'
+    };
+  });
+}
+const ITEMS = buildItems(RAW);
+
+/* ============ Day-in-month text parsing (for calendar) ============ */
+function weekRangeForMonth(week, daysInMonth){
+  const w = parseInt(week,10);
+  if(w===1) return [1,7];
+  if(w===2) return [8,14];
+  if(w===3) return [15,21];
+  return [22, daysInMonth];
+}
+
+function findDayRange(text, monthIdx){
+  if(!text) return null;
+  const monthNum = MONTH_NUM[monthIdx];
+  const daysInMonth = MONTH_DAYS[monthIdx];
+  const fullName = MONTH_FULL[monthIdx];
+  const abbr = MONTH_ABBR[monthIdx];
+
+  // 1. numeric range same-month prefix: 8/16 - 8/31  or 8/16-31
+  let re = new RegExp('\\b'+monthNum+'\\/(\\d{1,2})\\s*-\\s*(?:'+monthNum+'\\/)?(\\d{1,2})\\b');
+  let m = text.match(re);
+  if(m) return [parseInt(m[1]), parseInt(m[2])];
+
+  // 2. all numeric single occurrences for this month -> min/max
+  let re2 = new RegExp('\\b'+monthNum+'\\/(\\d{1,2})\\b','g');
+  let nums = [...text.matchAll(re2)].map(x=>parseInt(x[1])).filter(d=>d>=1 && d<=daysInMonth);
+  if(nums.length) return [Math.min(...nums), Math.max(...nums)];
+
+  // 3. month-name range: October 20-21  / Sept 1 / August 1
+  let re3 = new RegExp('(?:'+fullName+'|'+abbr+')\\.?\\s+(\\d{1,2})(?:\\s*-\\s*(\\d{1,2}))?','i');
+  let m3 = text.match(re3);
+  if(m3) return [parseInt(m3[1]), m3[2]?parseInt(m3[2]):parseInt(m3[1])];
+
+  // 4. WK pattern near month name
+  let re4 = new RegExp('WK([1-4])\\s*(?:&\\s*WK([1-4])\\s*)?(?:'+fullName+'|'+abbr+')?','i');
+  let re5 = new RegExp('(?:'+fullName+'|'+abbr+').{0,15}?WK([1-4])','i');
+  let m4 = text.match(re4) || text.match(re5);
+  if(m4 && (new RegExp(fullName+'|'+abbr,'i').test(text))){
+    return weekRangeForMonth(m4[1], daysInMonth);
+  }
+
+  // 5. semantic hints
+  if(/end of/i.test(text)) return weekRangeForMonth(4, daysInMonth);
+  if(/(beginning of|early)/i.test(text)) return weekRangeForMonth(1, daysInMonth);
+  if(/mid[\s-]/i.test(text)) return [Math.round(daysInMonth*0.45), Math.round(daysInMonth*0.55)];
+
+  return null;
+}
+
+/* ============ State ============ */
+const state = {
+  view: 'gantt',
+  region: 'all',
+  categories: new Set(CATEGORY_ORDER),
+  calMonth: CURRENT_MONTH_IDX,
+  collapsed: new Set()
+};
+
+/* ============ Filtering ============ */
+function passesFilter(item){
+  if(!state.categories.has(item.category)) return false;
+  if(state.region !== 'all'){
+    if(!(item.regions.includes(state.region) || item.regions.includes('all'))) return false;
+  }
+  return true;
+}
+
+/* ============ Rendering: shell ============ */
+const app = document.getElementById('app');
+
+function render(){
+  app.innerHTML = `
+    ${renderHeader()}
+    ${renderFilterBar()}
+    <div id="viewport"></div>
+  `;
+  document.getElementById('viewport').innerHTML = state.view==='gantt' ? renderGanttHTML() : renderCalendarHTML();
+  attachHeaderEvents();
+  attachFilterEvents();
+  if(state.view==='gantt') attachGanttEvents(); else attachCalendarEvents();
+}
+
+function renderHeader(){
+  return `
+  <div class="header">
+    <div>
+      <h1>VASA Operations Timeline</h1>
+      <div class="sub">Leadership initiatives, launches, pilots, promos, new clubs &amp; team workstreams &middot; data current as of July 1, 2026</div>
+    </div>
+    <div class="view-toggle">
+      <button data-view="gantt" class="${state.view==='gantt'?'active':''}">Gantt</button>
+      <button data-view="calendar" class="${state.view==='calendar'?'active':''}">Calendar</button>
+    </div>
+  </div>`;
+}
+
+function attachHeaderEvents(){
+  app.querySelectorAll('.view-toggle button').forEach(b=>{
+    b.onclick = ()=>{ state.view = b.dataset.view; render(); };
+  });
+}
+
+function renderFilterBar(){
+  const regionPills = ['all','1','2','3'].map(r=>
+    `<button class="pill ${state.region===r?'active':''}" data-region="${r}">${REGION_LABELS[r]}</button>`
+  ).join('');
+  const chips = CATEGORY_ORDER.map(cat=>{
+    const on = state.categories.has(cat);
+    const color = CATEGORY_COLORS[cat];
+    return `<button class="chip ${on?'':'off'}" data-cat="${escapeAttr(cat)}">
+      <span class="dot" style="background:${color}"></span>${cat}
+    </button>`;
+  }).join('');
+  return `
+  <div class="filterbar">
+    <div class="filter-row">
+      <div class="filter-label">Region</div>
+      ${regionPills}
+    </div>
+    <div class="filter-row">
+      <div class="filter-label">Category</div>
+      ${chips}
+      <div class="filter-actions">
+        <button class="linklike" id="allcats">All</button>
+        <button class="linklike" id="nonecats">None</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function attachFilterEvents(){
+  app.querySelectorAll('[data-region]').forEach(b=>{
+    b.onclick = ()=>{ state.region = b.dataset.region; render(); };
+  });
+  app.querySelectorAll('[data-cat]').forEach(b=>{
+    b.onclick = ()=>{
+      const cat = b.dataset.cat;
+      if(state.categories.has(cat)) state.categories.delete(cat); else state.categories.add(cat);
+      render();
+    };
+  });
+  const allBtn = document.getElementById('allcats');
+  const noneBtn = document.getElementById('nonecats');
+  if(allBtn) allBtn.onclick = ()=>{ state.categories = new Set(CATEGORY_ORDER); render(); };
+  if(noneBtn) noneBtn.onclick = ()=>{ state.categories = new Set(); render(); };
+}
+
+function escapeAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+function escapeHtml(s){
+  if(s===null||s===undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ============ Gantt view ============ */
+function renderGanttHTML(){
+  const visible = ITEMS.filter(passesFilter);
+  if(!visible.length){
+    return `<div class="gantt-wrap"><div class="gantt-empty">No initiatives match the current filters.</div></div>`;
+  }
+  const byCat = {};
+  CATEGORY_ORDER.forEach(c=>byCat[c]=[]);
+  visible.forEach(it=>byCat[it.category].push(it));
+
+  let head = `<div class="gantt-head">
+    <div class="hcell">Initiative</div>
+    ${MONTH_ABBR.map((m,i)=>`<div class="hcell ${i===CURRENT_MONTH_IDX?'current':''}">${m} '26</div>`).join('')}
+  </div>`;
+
+  let body = '';
+  CATEGORY_ORDER.forEach(cat=>{
+    const rows = byCat[cat];
+    if(!rows.length) return;
+    const collapsed = state.collapsed.has(cat);
+    body += `<div class="cat-group-header ${collapsed?'collapsed':''}" data-catgroup="${escapeAttr(cat)}">
+      <div class="catcell">
+        <span class="catdot" style="background:${CATEGORY_COLORS[cat]}"></span>
+        ${cat} <span class="count">(${rows.length})</span>
+        <span class="chev">&#9660;</span>
+      </div>
+    </div>`;
+    if(!collapsed){
+      rows.forEach(it=>{
+        body += ganttRowHTML(it);
+      });
+    }
+  });
+
+  return `
+  <div class="gantt-wrap">
+    <div class="gantt-scroll">
+      <div class="gantt-grid">
+        ${head}
+        ${body}
+      </div>
+    </div>
+  </div>
+  <div class="legend-note">
+    <span class="swatch"><span class="sw hatch"></span> needs a confirmed date</span>
+    <span class="swatch"><span class="sw hatch2"></span> being monitored — no committed timeline</span>
+    <span>Bars reflect month-level timing confirmed in source planning docs.</span>
+  </div>`;
+}
+
+function ganttRowHTML(it){
+  const monthCells = MONTH_ABBR.map((m,i)=>`<div class="monthcell ${i===CURRENT_MONTH_IDX?'current':''}"></div>`).join('');
+  let bars = '';
+  it.segments.forEach(seg=>{
+    const [s,e] = seg;
+    const widthPct = ((e-s+1)/7*100);
+    const leftPct = (s/7*100);
+    let cls = 'bar';
+    let style = `left:${leftPct}%;width:calc(${widthPct}% - 6px);margin-left:3px;`;
+    if(it.status==='needsdate'){ cls+=' needsdate'; style += `--bc:${it.color};`; }
+    else if(it.status==='monitoring'){ cls+=' monitoring'; }
+    else { style += `background:${it.color};`; }
+    bars += `<div class="${cls}" style="${style}" data-id="${it.id}" title="${escapeAttr(it.activity)}"></div>`;
+  });
+  return `
+  <div class="gantt-row">
+    <div class="label" data-id="${it.id}">
+      <div class="name">${escapeHtml(it.activity)}</div>
+      <div class="meta">${escapeHtml(it.owner||it.audience||'')}</div>
+    </div>
+    <div class="gantt-track">
+      ${monthCells}
+      ${bars}
+    </div>
+  </div>`;
+}
+
+function attachGanttEvents(){
+  app.querySelectorAll('[data-catgroup]').forEach(el=>{
+    el.onclick = ()=>{
+      const cat = el.dataset.catgroup;
+      if(state.collapsed.has(cat)) state.collapsed.delete(cat); else state.collapsed.add(cat);
+      render();
+    };
+  });
+  app.querySelectorAll('.bar, .label').forEach(el=>{
+    el.onclick = (e)=>{
+      e.stopPropagation();
+      const id = parseInt(el.dataset.id);
+      openModal(id);
+    };
+  });
+}
+
+/* ============ Calendar view ============ */
+function firstWeekdayOfMonth(monthIdx){
+  return new Date(YEAR, MONTH_NUM[monthIdx]-1, 1).getDay();
+}
+
+function renderCalendarHTML(){
+  const visible = ITEMS.filter(passesFilter);
+  const monthIdx = state.calMonth;
+  const daysInMonth = MONTH_DAYS[monthIdx];
+  const startDow = firstWeekdayOfMonth(monthIdx);
+
+  // classify items for this month
+  const dayEvents = {}; // day -> [ {item, span} ]
+  const bannerEvents = []; // whole-month, no pinpointable day
+  const monitoringList = [];
+  const needsDateList = [];
+
+  visible.forEach(it=>{
+    if(!it.monthsActive[monthIdx]) return;
+    if(it.status==='monitoring'){ monitoringList.push(it); return; }
+    if(it.status==='needsdate'){ needsDateList.push(it); return; }
+    const range = findDayRange(it.timing, monthIdx);
+    if(range){
+      const [s,e] = range;
+      for(let d=s; d<=Math.min(e,daysInMonth); d++){
+        if(!dayEvents[d]) dayEvents[d]=[];
+        dayEvents[d].push(it);
+      }
+    } else {
+      bannerEvents.push(it);
+    }
+  });
+
+  const tabs = MONTH_ABBR.map((m,i)=>{
+    const hasCur = i===CURRENT_MONTH_IDX;
+    return `<button class="${state.calMonth===i?'active':''} ${hasCur?'hascurrent':''}" data-month="${i}">${m} '26</button>`;
+  }).join('');
+
+  // build grid cells
+  let cells = '';
+  for(let i=0;i<startDow;i++) cells += `<div class="cal-day pad"></div>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const isToday = (monthIdx===CURRENT_MONTH_IDX && d===TODAY.getDate());
+    const evts = dayEvents[d] || [];
+    const chips = evts.slice(0,4).map(it=>
+      `<div class="evt-chip" style="background:${it.color}" data-id="${it.id}" title="${escapeAttr(it.activity)}">${escapeHtml(it.activity)}</div>`
+    ).join('');
+    const more = evts.length>4 ? `<div class="evt-chip" style="background:#8890A0">+${evts.length-4} more</div>` : '';
+    cells += `<div class="cal-day ${isToday?'today':''}">
+      <div class="daynum">${d}</div>
+      ${chips}${more}
+    </div>`;
+  }
+
+  const weekdayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const bannerHTML = bannerEvents.length ? `
+    <div class="sidebar-card">
+      <h3>Active all month</h3>
+      ${bannerEvents.map(it=>`<div class="side-item" data-id="${it.id}"><span class="dot" style="background:${it.color}"></span><span>${escapeHtml(it.activity)}</span></div>`).join('')}
+    </div>` : '';
+
+  const monitorHTML = `
+    <div class="sidebar-card">
+      <h3>Being monitored</h3>
+      ${monitoringList.length ? monitoringList.map(it=>`<div class="side-item" data-id="${it.id}"><span class="dot" style="background:#9AA0AA"></span><span>${escapeHtml(it.activity)}</span></div>`).join('') : '<div class="side-empty">Nothing to monitor this month.</div>'}
+    </div>`;
+
+  const needsDateHTML = `
+    <div class="sidebar-card">
+      <h3>Needs a confirmed date</h3>
+      ${needsDateList.length ? needsDateList.map(it=>`<div class="side-item" data-id="${it.id}"><span class="dot" style="background:#E8B200"></span><span>${escapeHtml(it.activity)}</span></div>`).join('') : '<div class="side-empty">Nothing flagged this month.</div>'}
+    </div>`;
+
+  return `
+  <div class="month-tabs">${tabs}</div>
+  <div class="cal-layout">
+    <div class="cal-card">
+      <div class="cal-weekdays">${weekdayNames.map(w=>`<div>${w}</div>`).join('')}</div>
+      <div class="cal-grid">${cells}</div>
+    </div>
+    <div class="cal-sidebar">
+      ${bannerHTML}
+      ${needsDateHTML}
+      ${monitorHTML}
+    </div>
+  </div>`;
+}
+
+function attachCalendarEvents(){
+  app.querySelectorAll('[data-month]').forEach(b=>{
+    b.onclick = ()=>{ state.calMonth = parseInt(b.dataset.month); render(); };
+  });
+  app.querySelectorAll('.evt-chip[data-id], .side-item[data-id]').forEach(el=>{
+    el.onclick = (e)=>{
+      e.stopPropagation();
+      openModal(parseInt(el.dataset.id));
+    };
+  });
+}
+
+/* ============ Modal ============ */
+function openModal(id){
+  const it = ITEMS.find(x=>x.id===id);
+  if(!it) return;
+  const overlay = document.getElementById('overlay');
+  const modal = document.getElementById('modal');
+  let flag = '';
+  if(it.status==='needsdate') flag = `<div class="flag">&#9888; Date not yet confirmed</div>`;
+  if(it.status==='monitoring') flag = `<div class="flag">&#128065; Being monitored — no committed timeline</div>`;
+  modal.innerHTML = `
+    <button class="close" id="modalclose">&times;</button>
+    <div class="cattag" style="background:${it.color}">${escapeHtml(it.category)}</div>
+    <h2>${escapeHtml(it.activity)}</h2>
+    <div class="row"><div class="k">Timing</div><div class="v">${escapeHtml(it.timing||'TBD')}</div></div>
+    <div class="row"><div class="k">Owner</div><div class="v">${escapeHtml(it.owner||'—')}</div></div>
+    <div class="row"><div class="k">Audience / view</div><div class="v">${escapeHtml(it.audience||'—')}</div></div>
+    <div class="row"><div class="k">Source</div><div class="v">${escapeHtml(it.source||'—')}</div></div>
+    ${flag}
+  `;
+  overlay.classList.add('show');
+  document.getElementById('modalclose').onclick = closeModal;
+  overlay.onclick = (e)=>{ if(e.target===overlay) closeModal(); };
+}
+function closeModal(){
+  document.getElementById('overlay').classList.remove('show');
+}
+
+/* ============ Init ============ */
+render();
+
+</script>
+</body>
+</html>
