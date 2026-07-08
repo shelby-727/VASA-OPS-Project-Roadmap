@@ -547,6 +547,25 @@ body{
   width:9px;height:9px;border-radius:50%;margin-top:3px;flex-shrink:0;
 }
 .side-empty{color:var(--muted); font-size:12.5px; padding:6px 0;}
+.side-hint{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid #F0F1F3;
+  font-size:11px;
+  color:var(--muted);
+  line-height:1.5;
+}
+.nodate-tag{
+  position:absolute;
+  left:8px; top:8px;
+  font-size:10.5px;
+  font-weight:700;
+  padding:3px 9px;
+  border-radius:999px;
+  cursor:pointer;
+}
+.nodate-tag.status-needsdate{background:#FFF3D6; color:#8A5A00;}
+.nodate-tag.status-monitoring{background:#EDEEF1; color:#5B6068;}
 
 /* ---------- Detail modal ---------- */
 .overlay{
@@ -752,7 +771,7 @@ function buildItems(raw){
     else if(!anyFill) status = it.category === '2027+ Pipeline' ? 'future' : 'unscheduled';
 
     let defaultStart=null, defaultEnd=null;
-    if(status==='scheduled' || status==='needsdate'){
+    if(status==='scheduled'){
       const activeIdx = monthsActive.map((v,i)=>v?i:-1).filter(i=>i>=0);
       if(activeIdx.length){
         const firstIdx = activeIdx[0], lastIdx = activeIdx[activeIdx.length-1];
@@ -993,6 +1012,9 @@ function ganttRowHTML(it){
       bar = `<div class="${cls}" style="${style}" data-id="${it.id}" title="${escapeAttr(it.activity)}"></div>`;
     }
   }
+  if(!bar && (effStatus==='needsdate' || effStatus==='monitoring')){
+    bar = `<div class="nodate-tag status-${effStatus}" data-id="${it.id}">${STATUS_LABELS[effStatus]}</div>`;
+  }
   return `
   <div class="gantt-row">
     <div class="label" data-id="${it.id}">
@@ -1014,7 +1036,7 @@ function attachGanttEvents(){
       render();
     };
   });
-  app.querySelectorAll('.bar, .label').forEach(el=>{
+  app.querySelectorAll('.bar, .label, .nodate-tag').forEach(el=>{
     el.onclick = (e)=>{
       e.stopPropagation();
       const id = parseInt(el.dataset.id);
@@ -1054,6 +1076,7 @@ function renderCalendarHTML(){
   const monthEnd = new Date(YEAR, MONTH_NUM[monthIdx]-1, daysInMonth);
 
   const monitoringList = [];
+  const needsDateList = [];
   const monthItems = [];
 
   visible.forEach(it=>{
@@ -1067,6 +1090,7 @@ function renderCalendarHTML(){
       return;
     }
     if(it.status==='monitoring' && it.monthsActive[monthIdx]) monitoringList.push(it);
+    if(it.status==='needsdate' && it.monthsActive[monthIdx]) needsDateList.push(it);
   });
 
   const tabs = MONTH_ABBR.map((m,i)=>{
@@ -1135,6 +1159,13 @@ function renderCalendarHTML(){
 
   const weekdayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+  const needsDateHTML = `
+    <div class="sidebar-card">
+      <h3>Needs a confirmed date</h3>
+      ${needsDateList.length ? needsDateList.map(it=>`<div class="side-item" data-id="${it.id}"><span class="dot" style="background:#E8B200"></span><span>${escapeHtml(it.activity)}</span></div>`).join('') : '<div class="side-empty">Nothing flagged this month.</div>'}
+      <div class="side-hint">Add a start/end date in the <b>Dates</b> tab to put these on the calendar.</div>
+    </div>`;
+
   const monitorHTML = `
     <div class="sidebar-card">
       <h3>Being monitored — no date</h3>
@@ -1150,6 +1181,7 @@ function renderCalendarHTML(){
       <div class="cal-grid">${weeksHTML}</div>
     </div>
     <div class="cal-sidebar">
+      ${needsDateHTML}
       ${monitorHTML}
     </div>
   </div>`;
