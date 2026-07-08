@@ -414,10 +414,26 @@ body{
   height:14px;
   font-size:10px;
   font-weight:700;
+  color:var(--navy-light);
+  pointer-events:auto;
+  cursor:pointer;
+  text-decoration:underline;
+  text-decoration-style:dotted;
+}
+.evt-overflow:hover{color:var(--navy);}
+.evt-showless{
+  position:absolute;
+  left:4px; right:4px;
+  height:14px;
+  font-size:10px;
+  font-weight:700;
   color:var(--muted);
   pointer-events:auto;
-  cursor:default;
+  cursor:pointer;
+  text-decoration:underline;
+  text-decoration-style:dotted;
 }
+.evt-showless:hover{color:var(--navy);}
 .evt-bar.monitoring2, .bar.monitoring{
   background:repeating-linear-gradient(45deg,#C7CAD1 0 6px, #E4E6EA 6px 12px);
   box-shadow:inset 0 0 0 1px #B9BDC6;
@@ -903,7 +919,8 @@ const state = {
   region: 'all',
   categories: new Set(CATEGORY_ORDER),
   calMonth: CURRENT_MONTH_IDX,
-  collapsed: new Set()
+  collapsed: new Set(),
+  expandedWeeks: new Set()
 };
 
 /* ============ Filtering ============ */
@@ -1194,7 +1211,10 @@ function renderCalendarHTML(){
 
   const laneOf = {};
   let weeksHTML = '';
-  weeks.forEach(row=>{
+  weeks.forEach((row, weekIdx)=>{
+    const weekKey = monthIdx+'-'+weekIdx;
+    const isExpanded = state.expandedWeeks.has(weekKey);
+    const effectiveMaxLanes = isExpanded ? 999 : MAXLANES;
     const daysInRow = row.filter(d=>d!==null);
     const rowStart = daysInRow.length ? daysInRow[0] : null;
     const rowEnd = daysInRow.length ? daysInRow[daysInRow.length-1] : null;
@@ -1217,7 +1237,7 @@ function renderCalendarHTML(){
           lane = 0;
           while(occupied[lane]!==undefined && occupied[lane] >= colStart) lane++;
         }
-        if(lane >= MAXLANES){ overflow.push(it); return; }
+        if(lane >= effectiveMaxLanes){ overflow.push(it); return; }
         laneOf[it.id] = lane;
         occupied[lane] = colEnd;
         segments.push({it, colStart, colEnd, lane});
@@ -1242,9 +1262,17 @@ function renderCalendarHTML(){
       return `<div class="${cls}" style="${style}" data-id="${seg.it.id}" title="${escapeAttr(seg.it.activity)}">${escapeHtml(seg.it.activity)}</div>`;
     }).join('');
 
-    const overflowHTML = overflow.length ? `<div class="evt-overflow" style="top:${HEADER_H+MAXLANES*LANE_H}px" title="${escapeAttr(overflow.map(o=>o.activity).join(', '))}">+${overflow.length} more</div>` : '';
+    const usedLanes = segments.length ? Math.max(...segments.map(s=>s.lane))+1 : 0;
+    const overflowTop = HEADER_H + Math.max(usedLanes, isExpanded?0:MAXLANES)*LANE_H;
+    let overflowHTML = '';
+    if(overflow.length){
+      overflowHTML = `<div class="evt-overflow" style="top:${overflowTop}px" data-weekkey="${weekKey}" title="Click to show all">+${overflow.length} more</div>`;
+    } else if(isExpanded){
+      overflowHTML = `<div class="evt-showless" style="top:${overflowTop}px" data-weekkey="${weekKey}">Show less</div>`;
+    }
 
-    const rowMinH = HEADER_H + MAXLANES*LANE_H + (overflow.length?OVERFLOW_H:6);
+    const lanesForHeight = isExpanded ? Math.max(usedLanes, 1) : MAXLANES;
+    const rowMinH = HEADER_H + lanesForHeight*LANE_H + (overflowHTML?OVERFLOW_H:6);
     weeksHTML += `<div class="cal-week" style="min-height:${rowMinH}px">
         ${dayCells}
         <div class="bar-layer">${bars}${overflowHTML}</div>
@@ -1333,6 +1361,20 @@ function attachCalendarEvents(){
       card.classList.toggle('expanded', !open);
     };
   }
+  app.querySelectorAll('.evt-overflow[data-weekkey]').forEach(el=>{
+    el.onclick = (e)=>{
+      e.stopPropagation();
+      state.expandedWeeks.add(el.dataset.weekkey);
+      render();
+    };
+  });
+  app.querySelectorAll('.evt-showless[data-weekkey]').forEach(el=>{
+    el.onclick = (e)=>{
+      e.stopPropagation();
+      state.expandedWeeks.delete(el.dataset.weekkey);
+      render();
+    };
+  });
 }
 
 /* ============ Dates (editable table) view ============ */
