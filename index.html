@@ -555,6 +555,70 @@ body{
   color:var(--muted);
   line-height:1.5;
 }
+.agenda-list{
+  max-height:340px;
+  overflow-y:auto;
+}
+.agenda-item{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  padding:7px 0;
+  border-bottom:1px solid #F3F4F6;
+  cursor:pointer;
+}
+.agenda-item:last-child{border-bottom:none;}
+.agenda-item .dot{
+  width:9px;height:9px;border-radius:50%;margin-top:4px;flex-shrink:0;
+}
+.agenda-text{flex:1; min-width:0;}
+.agenda-name{
+  font-size:12.5px;
+  font-weight:600;
+  color:var(--text);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.agenda-meta{
+  font-size:10.5px;
+  color:var(--muted);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.agenda-date{
+  font-size:10.5px;
+  font-weight:700;
+  color:var(--navy-light);
+  white-space:nowrap;
+  flex-shrink:0;
+  padding-top:1px;
+}
+.watchlist-card{padding-bottom:6px;}
+.watchlist-toggle{
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin:0;
+  user-select:none;
+}
+.watchlist-toggle .chev{
+  font-size:9px;
+  color:var(--muted);
+  transition:transform .15s;
+}
+.watchlist-card.expanded .watchlist-toggle .chev{transform:rotate(180deg);}
+.watchlist-sub{
+  font-size:10.5px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:var(--muted);
+  margin:12px 0 4px;
+}
+.watchlist-sub:first-of-type{margin-top:10px;}
 .nodate-tag{
   position:absolute;
   left:8px; top:8px;
@@ -953,6 +1017,15 @@ function renderGanttHTML(){
   const byCat = {};
   CATEGORY_ORDER.forEach(c=>byCat[c]=[]);
   visible.forEach(it=>byCat[it.category].push(it));
+  CATEGORY_ORDER.forEach(cat=>{
+    byCat[cat].sort((a,b)=>{
+      const ea = getEffective(a), eb = getEffective(b);
+      if(ea.start && !eb.start) return -1;
+      if(!ea.start && eb.start) return 1;
+      if(ea.start && eb.start && ea.start !== eb.start) return ea.start < eb.start ? -1 : 1;
+      return a.activity.localeCompare(b.activity);
+    });
+  });
 
   let head = `<div class="gantt-head">
     <div class="hcell">Initiative</div>
@@ -1066,6 +1139,27 @@ function computeWeeks(startDow, daysInMonth){
   return weeks;
 }
 
+const ALL_MONTHS_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function formatShortDate(d){ return ALL_MONTHS_ABBR[d.getMonth()]+' '+d.getDate(); }
+function formatRange(s,e){
+  if(s.getTime()===e.getTime()) return formatShortDate(s);
+  if(s.getFullYear()===e.getFullYear() && s.getMonth()===e.getMonth()) return ALL_MONTHS_ABBR[s.getMonth()]+' '+s.getDate()+'\u2013'+e.getDate();
+  return formatShortDate(s)+' \u2013 '+formatShortDate(e);
+}
+function getMonthAgenda(visible, monthIdx){
+  const monthStart = new Date(YEAR, MONTH_NUM[monthIdx]-1, 1);
+  const monthEnd = new Date(YEAR, MONTH_NUM[monthIdx]-1, MONTH_DAYS[monthIdx]);
+  const out = [];
+  visible.forEach(it=>{
+    const eff = getEffective(it);
+    if(!eff.start || !eff.end) return;
+    const s = fromISO(eff.start), e = fromISO(eff.end);
+    if(s<=monthEnd && e>=monthStart) out.push({item:it, start:s, end:e});
+  });
+  out.sort((a,b)=> a.start-b.start || a.item.activity.localeCompare(b.item.activity));
+  return out;
+}
+
 function renderCalendarHTML(){
   const visible = ITEMS.filter(passesFilter);
   const monthIdx = state.calMonth;
@@ -1159,18 +1253,49 @@ function renderCalendarHTML(){
 
   const weekdayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-  const needsDateHTML = `
+  const thisMonthAgenda = getMonthAgenda(visible, monthIdx);
+  const nextMonthIdx = monthIdx < 6 ? monthIdx+1 : null;
+  const nextMonthAgenda = nextMonthIdx!==null ? getMonthAgenda(visible, nextMonthIdx) : [];
+  const watchlistCount = needsDateList.length + monitoringList.length;
+
+  function agendaRow(entry){
+    const { item, start, end } = entry;
+    return `<div class="agenda-item" data-id="${item.id}">
+      <span class="dot" style="background:${item.color}"></span>
+      <div class="agenda-text">
+        <div class="agenda-name">${escapeHtml(item.activity)}</div>
+        <div class="agenda-meta">${escapeHtml(item.category)}${item.audience && item.regions[0]!=='all' ? ' &middot; '+escapeHtml(item.audience) : ''}</div>
+      </div>
+      <div class="agenda-date">${formatRange(start,end)}</div>
+    </div>`;
+  }
+
+  const thisMonthHTML = `
     <div class="sidebar-card">
-      <h3>Needs a confirmed date</h3>
-      ${needsDateList.length ? needsDateList.map(it=>`<div class="side-item" data-id="${it.id}"><span class="dot" style="background:#E8B200"></span><span>${escapeHtml(it.activity)}</span></div>`).join('') : '<div class="side-empty">Nothing flagged this month.</div>'}
-      <div class="side-hint">Add a start/end date in the <b>Dates</b> tab to put these on the calendar.</div>
+      <h3>This month &middot; ${MONTH_ABBR[monthIdx]} '26</h3>
+      <div class="agenda-list">
+        ${thisMonthAgenda.length ? thisMonthAgenda.map(agendaRow).join('') : '<div class="side-empty">Nothing scheduled this month.</div>'}
+      </div>
     </div>`;
 
-  const monitorHTML = `
+  const nextMonthHTML = nextMonthIdx!==null ? `
     <div class="sidebar-card">
-      <h3>Being monitored — no date</h3>
-      ${monitoringList.length ? monitoringList.map(it=>`<div class="side-item" data-id="${it.id}"><span class="dot" style="background:#9AA0AA"></span><span>${escapeHtml(it.activity)}</span></div>`).join('') : '<div class="side-empty">Nothing to monitor this month.</div>'}
-      <div class="side-hint">Give any of these a start/end date in the <b>Dates</b> tab to put them on the calendar.</div>
+      <h3>Next month &middot; ${MONTH_ABBR[nextMonthIdx]} '26</h3>
+      <div class="agenda-list">
+        ${nextMonthAgenda.length ? nextMonthAgenda.map(agendaRow).join('') : '<div class="side-empty">Nothing on the calendar yet.</div>'}
+      </div>
+    </div>` : '';
+
+  const watchlistHTML = `
+    <div class="sidebar-card watchlist-card" id="watchlistcard">
+      <h3 class="watchlist-toggle">Watchlist &middot; ${watchlistCount} without a date <span class="chev">&#9660;</span></h3>
+      <div class="watchlist-body" style="display:none;">
+        <div class="watchlist-sub">Needs a confirmed date</div>
+        ${needsDateList.length ? needsDateList.map(it=>`<div class="side-item" data-id="${it.id}"><span class="dot" style="background:#E8B200"></span><span>${escapeHtml(it.activity)}</span></div>`).join('') : '<div class="side-empty">None this month.</div>'}
+        <div class="watchlist-sub">Being monitored</div>
+        ${monitoringList.length ? monitoringList.map(it=>`<div class="side-item" data-id="${it.id}"><span class="dot" style="background:#9AA0AA"></span><span>${escapeHtml(it.activity)}</span></div>`).join('') : '<div class="side-empty">None this month.</div>'}
+        <div class="side-hint">Add a start/end date in the <b>Dates</b> tab to move these onto the calendar.</div>
+      </div>
     </div>`;
 
   return `
@@ -1181,8 +1306,9 @@ function renderCalendarHTML(){
       <div class="cal-grid">${weeksHTML}</div>
     </div>
     <div class="cal-sidebar">
-      ${needsDateHTML}
-      ${monitorHTML}
+      ${thisMonthHTML}
+      ${nextMonthHTML}
+      ${watchlistHTML}
     </div>
   </div>`;
 }
@@ -1191,12 +1317,22 @@ function attachCalendarEvents(){
   app.querySelectorAll('[data-month]').forEach(b=>{
     b.onclick = ()=>{ state.calMonth = parseInt(b.dataset.month); render(); };
   });
-  app.querySelectorAll('.evt-bar[data-id], .side-item[data-id]').forEach(el=>{
+  app.querySelectorAll('.evt-bar[data-id], .side-item[data-id], .agenda-item[data-id]').forEach(el=>{
     el.onclick = (e)=>{
       e.stopPropagation();
       openModal(parseInt(el.dataset.id));
     };
   });
+  const wlToggle = app.querySelector('.watchlist-toggle');
+  if(wlToggle){
+    wlToggle.onclick = ()=>{
+      const body = app.querySelector('.watchlist-body');
+      const card = app.querySelector('#watchlistcard');
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      card.classList.toggle('expanded', !open);
+    };
+  }
 }
 
 /* ============ Dates (editable table) view ============ */
